@@ -8,8 +8,9 @@ import pyomo
 from pyomo.environ import ConcreteModel, Var, Objective, Constraint, SolverFactory
 from pyomo.environ import maximize, Binary, RangeSet, PositiveReals, ConstraintList
 
-import pylab as pl
-from matplotlib import collections as mc
+# import pylab as pl
+# from matplotlib import collections as mc
+import matplotlib.pyplot as plt
 
 # funzione per leggere il file
 def ParseFile(filename):
@@ -54,21 +55,57 @@ def BuildGraph(Cs):
     return G
 
 
-def PlotTour(Ps, Ls, values):
-    lines = [[Ps[i], Ps[j]] for i,j in Ls]
-    fig, ax = pl.subplots()
+#def PlotTour(Ps, Ls, values):
+    # lines = [[Ps[i], Ps[j]] for i,j in Ls]
+    # fig, ax = pl.subplots()
 
-    lc = mc.LineCollection(lines, linewidths=[1.5 if x > 0.501 else 1 for x in values],
-                           colors=['blue' if x > 0.501 else 'orange' for x in values])
+    # lc = mc.LineCollection(lines, linewidths=[1.5 if x > 0.501 else 1 for x in values],
+    #                        colors=['blue' if x > 0.501 else 'orange' for x in values])
     
-    ax.add_collection(lc)
-    ax.scatter([i for i,j in Ps], [j for i,j in Ps], 
-                s=20, alpha=0.8, color='red')
+    # ax.add_collection(lc)
+    # ax.scatter([i for i,j in Ps], [j for i,j in Ps], 
+    #             s=20, alpha=0.8, color='red')
     
-    ax.autoscale()
-    ax.margins(0.1)
-    ax.axis('equal')
-    pl.show()
+    # ax.autoscale()
+    # ax.margins(0.1)
+    # ax.axis('equal')
+    # pl.show()
+
+def DisegnaSegmento(A, B, ax):
+    """ 
+    Disegna un segmento nel piano dal punto A a al punto B
+    Vedi manuale a: http://matplotlib.org/api/pyplot_api.html
+    """
+    # Disegna il segmento
+    ax.plot([A[0], B[0]], [A[1], B[1]], 'b', lw=0.75)
+    # Disegna gli estremi del segmento
+    DisegnaPunto(A, ax)
+    DisegnaPunto(B, ax)
+
+
+def DisegnaPunto(A, ax):
+    """
+    Disegna un punto nel piano
+    """
+    ax.plot([A[0]], [A[1]], 'bo', alpha=0.5)
+
+
+def PlotSolution(Xs, Ws, Es):
+    fig, ax = plt.subplots()
+    for i, j in Es:
+        DisegnaSegmento(Xs[i], Ws[j], ax)
+
+    ax.scatter([i for i, j in Xs[1:]], [j for i, j in Xs[1:]],
+               s=Ws[1:], alpha=0.3, cmap='viridis')
+
+    for i in range(len(Xs[:])):
+        ax.annotate(str(i+1), Xs[i])
+
+    plt.plot([Xs[0][0]], [Xs[0][1]], marker='s', color='red', alpha=0.5)
+    plt.axis('square')
+    plt.axis('off')
+    
+    
     
 def VRPCut(M, Ls):
     # INPUT: - M cardinalità gironi (?ACTUNG: M divide o no?)
@@ -128,18 +165,23 @@ if __name__ == "__main__":
     
     lista_coord = [(x,y) for _,x,y in lista_dati] #lista di tuple con solo le coordinate
     # print(lista_coord[0:2])
+    lista_coord_1 = [x for _,x,_ in lista_dati] 
+    lista_coord_2 = [y for _,_,y in lista_dati]
     
     lista_costi = CostList(lista_dati)
     # print(lista_costi)
     print('numero di coppie = {}\n'.format(len(lista_costi))) # per check
     
     G = BuildGraph(lista_costi)
+    nx.draw(G) 
     print( 'numero di nodi del grafo = {}\n'.format(nx.number_of_nodes(G)) )
     print( 'numero di lati del grafo = {}\n'.format(nx.number_of_edges(G)) )
-    print(G[0][1]['weight'])
+    print(G[1][1]['weight'])
     
     Es = VRPCut(2, lista_dati)
     
-    n = len(lista_dati)
-    values = [1 for _ in range(n)]
-    PlotTour(lista_coord, Es, values)
+    # n = len(lista_dati)
+    # values = [1 for _ in range(n)]
+    # PlotTour(lista_coord, Es, values)
+
+    PlotSolution(lista_coord_1, lista_coord_2, Es)
