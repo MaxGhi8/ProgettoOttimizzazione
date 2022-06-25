@@ -1,17 +1,30 @@
+
+from math import sqrt
+
+# Import the NetworkX library per fare i grafi
+import networkx as nx
+
+import pyomo
+from pyomo.environ import ConcreteModel, Var, Objective, Constraint, SolverFactory
+from pyomo.environ import maximize, Binary, RangeSet, PositiveReals, ConstraintList
+
+import pylab as pl
+from matplotlib import collections as mc
+
 # funzione per leggere il file
 def ParseFile(filename):
+    # OUTPUT: Ls lista con i nomi delle squadre e le due coordinate 
     doc = open(filename, 'r', encoding = 'utf-8')
     doc.readline() # Salto la prima linea con le intestazioni
     # Leggo i circoli e faccio una lista di liste, ogni sottolista contiene
     # ordinatamente nome squadra come stringa e le due coordinate come float
-    D = []
+    Ls = []
     for row in doc:
         row = row.split(',')
         # print(row)
-        D.append( [row[1], float(row[2]), float(row[3])] )
-    return D
+        Ls.append( [row[1], float(row[2]), float(row[3])] )
+    return Ls 
 
-from math import sqrt
 
 def CostList(Ls):
     # INPUT: Ls è la lista in output da ParseFile
@@ -20,28 +33,26 @@ def CostList(Ls):
     Cs = []
     for i in range(n):
         for j in range(n):
-            if j > i:
+            if j != i:
                 costo = sqrt((Ls[i][1] - Ls[j][1])**2 + (Ls[i][2] - Ls[j][2])**2)
-                Cs.append( (Ls[i][0], Ls[j][0], costo) )
+            else:
+                costo = 10000 # evitiamo che le squadre si scontrino con sè stesse
+            Cs.append( (i+1, j+1, costo) )
+            ### ACTUNG: nome i-esimo associato alla posizione (i+1)-esima in Ls ###
     return Cs
 
-
-# Import the NetworkX library per fare i grafi
-import networkx as nx
 
 def BuildGraph(Cs):
     # INPUT: Cs lista dei costi, output di CostList
     # OUTPUT: G grafo indiretto con nodi=squadre, lati=costi 
     
-    G = nx.Graph() # costruisce grafo indiretto    
+    G = nx.DiGraph() # costruisce grafo diretto    
     # aggiungo i nodi 
     G.add_nodes_from(list(map(lambda x: x[0], Cs)))
     # aggiungo i lati con i costi associati
-    G.add_weighted_edges_from(Cs) #se esiste già non lo riaggiunge
+    G.add_weighted_edges_from(Cs) # se esiste già non lo riaggiunge
     return G
 
-import pylab as pl
-from matplotlib import collections as mc
 
 def PlotTour(Ps, Ls, values):
     lines = [[Ps[i], Ps[j]] for i,j in Ls]
@@ -59,74 +70,51 @@ def PlotTour(Ps, Ls, values):
     ax.axis('equal')
     pl.show()
     
-from pyomo.environ import ConcreteModel, Var, Objective, Constraint, SolverFactory
-from pyomo.environ import maximize, Binary, RangeSet, PositiveReals, ConstraintList
+def VRPCut(M, Ls):
+    # INPUT: - M cardinalità gironi (?ACTUNG: M divide o no?)
+    #        - Ls lista delle squadre
+    
+    # Build a directed graph out of the data
+    Cs = CostList(Ls)
+    G = BuildGraph(Cs)
 
-def TSP(C):
-    # Dimension of the problem
-    n, n = C.shape
-    
-    print('city:', n)
-    
+    # Build ILP Model
     model = ConcreteModel()
+    
+    n = len(Ls) # numero di nodi (squadre)
+    model.N = RangeSet(n)
 
-    # The set of indces for our variables
-    model.I = RangeSet(1, n)   # NOTE: it is different from "range(n)"
-    # the RangeSet is in [1,..n], the second is [0,n(
-    
-    model.J = RangeSet(1, n)
-    
-    # Variable definition
-    model.X = Var(model.I, model.J, within=Binary)
-    
-    # Variables for the MTZ subtour constraints
-    model.U = Var(model.I, within=PositiveReals)
-    
-    # Objective function
-    model.obj = Objective(
-        expr = sum(C[i-1,j-1] * model.X[i,j] for i,j in model.X),
-        sense = maximize
-    )
+    # TODO: introduce only usefull variables (no arc, no variable)
+    model.x = Var(model.N, model.N, domain=Binary)
 
-    
-    # The constraints
-#    model.Indegree = Constraint(model.I, 
-#                                rule =  lambda m, i: sum(m.X[i,j] for j in m.J) == 1)
+    # Objective function of arc variables
+    model.obj = Objective(expr=sum(G[i][j]['weight']*model.x[i, j] for i, j in G.edges()))
 
-    def OutDegRule(m, i):
-        return sum(m.X[i,j] for j in m.J) == 1
-    model.Outdegree = Constraint(model.I, rule = OutDegRule)
-    
-    def InDegRule(m, j):
-        return sum(m.X[i,j] for i in m.I) == 1
-    model.Indegree = Constraint(model.J, rule = InDegRule)
-    
-    # easily for forbding "pairs" tour
-    model.pairs = ConstraintList()
-    for i in model.I:
-        for j in model.J:
-            model.pairs.add(expr=model.X[i,j] + model.X[j,i] <= 1)
-    
-    # MTZ constraints for forbidding subtours
-    model.subtour = ConstraintList()
-    for i in model.I:
-        for j in model.J:
-            if i > 1 and j > 1 and i != j:
-                model.subtour.add(model.U[i] - model.U[j] + (n-1)*model.X[i,j] <= (n-1) - 1)
+    # Vincoli archi uscenti
+    model.outdegree = ConstraintList()
+    for i in model.N:
+        model.outdegree.add(expr=sum(model.x[v, w] for v, w in G.out_edges(i)) == 1)
+
+    # Vincoli archi entranti
+    model.indegree = ConstraintList()
+    for j in model.N:
+        model.indegree.add(expr=sum(model.x[v, w] for v, w in G.in_edges(j)) == 1)
     
     # Solve the model
-    sol = SolverFactory('gurobi').solve(model, tee=True)
-    
-    sol_json = sol.json_repn()
-    #print(sol_json)
-    if sol_json['Solver'][0]['Status'] != 'ok':
-        print("qualcosa è andato storto")
-        return None
+    sol = SolverFactory('glpk').solve(model, tee=True)
 
-    # Retrieve the solution: as a list of edges in the optimal tour
-    return [(i-1, j-1) for i, j in model.X if model.X[i,j]() > 0.0]    
-    
-    
+    # # Get a JSON representation of the solution
+    # sol_json = sol.json_repn()
+    # # Check solution status
+    # if sol_json['Solver'][0]['Status'] != 'ok':
+    #     return None
+
+    selected = []
+    for i, j in model.x:
+        if model.x[i, j]() > 0:
+            selected.append((i, j))
+
+    return selected
 
 # -----------------------------------------------
 #   MAIN function
@@ -138,15 +126,20 @@ if __name__ == "__main__":
     # print(lista_dati[0:2])
     print('numero di squadre = {}\n'.format(len(lista_dati))) #stampo a video il numero di squadre
     
-    # lista_coord = [(x,y) for _,x,y in lista_dati] #lista di tuple con solo le coordinate
+    lista_coord = [(x,y) for _,x,y in lista_dati] #lista di tuple con solo le coordinate
     # print(lista_coord[0:2])
     
     lista_costi = CostList(lista_dati)
     # print(lista_costi)
-    print('numero di coppie diverse = {}\n'.format(len(lista_costi))) # per check
+    print('numero di coppie = {}\n'.format(len(lista_costi))) # per check
     
     G = BuildGraph(lista_costi)
     print( 'numero di nodi del grafo = {}\n'.format(nx.number_of_nodes(G)) )
     print( 'numero di lati del grafo = {}\n'.format(nx.number_of_edges(G)) )
+    print(G[0][1]['weight'])
     
-    #PlotTour(lista_coord, RandomTour, values)
+    Es = VRPCut(2, lista_dati)
+    
+    n = len(lista_dati)
+    values = [1 for _ in range(n)]
+    PlotTour(lista_coord, Es, values)
