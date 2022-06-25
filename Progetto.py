@@ -1,5 +1,5 @@
 
-from math import sqrt
+from math import sqrt, ceil
 
 # Import the NetworkX library per fare i grafi
 import networkx as nx
@@ -16,7 +16,8 @@ import matplotlib.pyplot as plt
 def ParseFile(filename):
     # OUTPUT: Ls lista con i nomi delle squadre e le due coordinate 
     doc = open(filename, 'r', encoding = 'utf-8')
-    doc.readline() # Salto la prima linea con le intestazioni
+    for _ in range(3):
+        doc.readline() # Salto la prima linea con le intestazioni
     # Leggo i circoli e faccio una lista di liste, ogni sottolista contiene
     # ordinatamente nome squadra come stringa e le due coordinate come float
     Ls = []
@@ -95,8 +96,8 @@ def PlotSolution(Xs, Ws, Es):
     for i, j in Es:
         DisegnaSegmento(Xs[i-1], Xs[j-1], ax)
 
-    ax.scatter([i for i, j in Xs[1:]], [j for i, j in Xs[1:]],
-                s=Ws[1:], alpha=0.3, cmap='viridis')
+    # ax.scatter([i for i, j in Xs[1:]], [j for i, j in Xs[1:]],
+    #             s=Ws[1:], alpha=0.3, cmap='viridis')
 
     # for i in range(len(Xs[:])):
     #     ax.annotate(str(i+1), Xs[i])
@@ -132,29 +133,79 @@ def VRPCut(M, Ls):
     for i in model.N:
         model.outdegree.add(expr=sum(model.x[v, w] for v, w in G.out_edges(i)) == 1)
 
-    # Vincoli archi entranti
+    # Vincoli archi entranti    
     model.indegree = ConstraintList()
     for j in model.N:
         model.indegree.add(expr=sum(model.x[v, w] for v, w in G.in_edges(j)) == 1)
         
     # Vincoli gironi da M squadre
+    model.arcs = ConstraintList()
     
-    
-    # Solve the model
-    sol = SolverFactory('glpk').solve(model, tee=True)
+    # Vincoli no coppie
+    if M > 2:
+        for i, j in G.edges():
+            if i < j:
+                model.arcs.add(model.x[i, j] + model.x[j, i] <= 1)
+                
+    solver = SolverFactory('gurobi')
 
-    # # Get a JSON representation of the solution
-    # sol_json = sol.json_repn()
-    # # Check solution status
-    # if sol_json['Solver'][0]['Status'] != 'ok':
-    #     return None
+    it = 0
+    Pool = []
+    while it <= 50:
+        it += 1
 
-    selected = []
-    for i, j in model.x:
-        if model.x[i, j]() > 0:
-            selected.append((i, j))
+        sol = solver.solve(model, tee=False)
+
+        # Get a JSON representation of the solution
+        sol_json = sol.json_repn()
+        # Check solution status
+        if sol_json['Solver'][0]['Status'] != 'ok':
+            return None
+
+        selected = []
+        for i, j in model.x:
+            if model.x[i, j]() > 0:
+                selected.append((i, j))
+        print(selected)
+        
+        lista_coord = [(x,y) for _,x,y in Ls]
+        PlotSolution(lista_coord, lista_coord, selected)
+
+        Cuts = SubtourElimin(selected, M)
+        print("LB:", model.obj(), "Cuts: ", Cuts)
+
+        if Cuts == []:
+            print("Optimal solution found")
+            break
+
+        for S, lun in Cuts:
+            Pool.append((S, lun))
+            if lun < M:
+                print(1, sum(model.x[i, j]() for i in selected for j in S) )
+                model.arcs.add(sum(model.x[i, j] for i in S for j in S) >= lun + 1)
+            else: # lun > M
+                print(2, sum(model.x[i, j]() for i in S for j in S))
+                model.arcs.add(sum(model.x[i, j] for i in S for j in S) <= lun - 1)
+
 
     return selected
+
+def SubtourElimin(selected, M):
+    G = nx.DiGraph()
+
+    for i, j in selected:
+        G.add_edge(i, j)
+
+    Cys = nx.simple_cycles(G)
+    # print('Cys={}'.format(Cys))
+
+    Subtours = []
+    for cycle in Cys:
+        lun = len(cycle)
+        if lun != M:
+            Subtours.append((cycle, lun))
+
+    return Subtours
 
 # -----------------------------------------------
 #   MAIN function
@@ -164,12 +215,10 @@ if __name__ == "__main__":
     
     lista_dati = ParseFile(filename)
     # print(lista_dati[0:2])
-    # print('numero di squadre = {}\n'.format(len(lista_dati))) # stampo a video il numero di squadre
+    print('numero di squadre = {}\n'.format(len(lista_dati))) # stampo a video il numero di squadre
     
     lista_coord = [(x,y) for _,x,y in lista_dati] # lista di tuple con solo le coordinate
     # print(lista_coord[0:2])
-    lista_coord_1 = [x for _,x,_ in lista_dati] 
-    lista_coord_2 = [y for _,_,y in lista_dati]
     
     lista_costi = CostList(lista_dati)
     # print(lista_costi)
@@ -181,7 +230,9 @@ if __name__ == "__main__":
     # print( 'numero di lati del grafo = {}\n'.format(nx.number_of_edges(G)) )
     # print(G[1][1]['weight'])
     
-    Es = VRPCut(31, lista_dati)
+    M = 3
+
+    Es = VRPCut(M, lista_dati)
     
     # n = len(lista_dati)
     # values = [1 for _ in range(n)]
