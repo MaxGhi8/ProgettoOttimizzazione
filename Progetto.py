@@ -1,23 +1,19 @@
 
-from math import sqrt, ceil
-
+from math import sqrt
+import numpy as np
 # Import the NetworkX library per fare i grafi
 import networkx as nx
 
-import pyomo
-from pyomo.environ import ConcreteModel, Var, Objective, Constraint, SolverFactory
-from pyomo.environ import maximize, Binary, RangeSet, PositiveReals, ConstraintList
+from pyomo.environ import ConcreteModel, Var, Objective, SolverFactory
+from pyomo.environ import Binary, RangeSet, ConstraintList
 
-# import pylab as pl
-# from matplotlib import collections as mc
 import matplotlib.pyplot as plt
 
 # funzione per leggere il file
 def ParseFile(filename):
     # OUTPUT: Ls lista con i nomi delle squadre e le due coordinate 
     doc = open(filename, 'r', encoding = 'utf-8')
-    for _ in range(3):
-        doc.readline() # Salto la prima linea con le intestazioni
+    doc.readline() # Salto la prima linea con le intestazioni
     # Leggo i circoli e faccio una lista di liste, ogni sottolista contiene
     # ordinatamente nome squadra come stringa e le due coordinate come float
     Ls = []
@@ -37,6 +33,10 @@ def CostList(Ls):
         for j in range(n):
             if j != i:
                 costo = sqrt((Ls[i][1] - Ls[j][1])**2 + (Ls[i][2] - Ls[j][2])**2)
+                # Delta_phi = (Ls[i][1] - Ls[j][1])/2
+                # costo = 2*6360*np.arcsin(sqrt( np.sin(Delta_phi)**2 +
+                #                          ( 1-np.sin(Delta_phi)**2 - np.sin((Ls[i][1] + Ls[j][1])/2 )**2 )*
+                #                          np.sin((Ls[i][2] - Ls[j][2])/2)**2))
             else:
                 costo = 10000 # evitiamo che le squadre si scontrino con sè stesse
             Cs.append( (i+1, j+1, costo) )
@@ -54,23 +54,6 @@ def BuildGraph(Cs):
     # aggiungo i lati con i costi associati
     G.add_weighted_edges_from(Cs) # se esiste già non lo riaggiunge
     return G
-
-
-#def PlotTour(Ps, Ls, values):
-    # lines = [[Ps[i], Ps[j]] for i,j in Ls]
-    # fig, ax = pl.subplots()
-
-    # lc = mc.LineCollection(lines, linewidths=[1.5 if x > 0.501 else 1 for x in values],
-    #                        colors=['blue' if x > 0.501 else 'orange' for x in values])
-    
-    # ax.add_collection(lc)
-    # ax.scatter([i for i,j in Ps], [j for i,j in Ps], 
-    #             s=20, alpha=0.8, color='red')
-    
-    # ax.autoscale()
-    # ax.margins(0.1)
-    # ax.axis('equal')
-    # pl.show()
 
 def DisegnaSegmento(A, B, ax):
     """ 
@@ -91,24 +74,22 @@ def DisegnaPunto(A, ax):
     ax.plot([A[0]], [A[1]], 'bo', alpha=0.5)
 
 
-def PlotSolution(Xs, Ws, Es):
+def PlotSolution(Xs, Es):
     fig, ax = plt.subplots()
     for i, j in Es:
         DisegnaSegmento(Xs[i-1], Xs[j-1], ax)
 
-    # ax.scatter([i for i, j in Xs[1:]], [j for i, j in Xs[1:]],
-    #             s=Ws[1:], alpha=0.3, cmap='viridis')
+    ax.scatter([i for i, j in Xs[1:]], [j for i, j in Xs[1:]], alpha=0.3, cmap='viridis')
 
-    # for i in range(len(Xs[:])):
-    #     ax.annotate(str(i+1), Xs[i])
+    for i in range(len(Xs[:])):
+        ax.annotate(str(i+1), Xs[i])
 
-    # plt.plot([Xs[0][0]], [Xs[0][1]], marker='s', color='red', alpha=0.5) # Depot
     plt.axis('square')
     plt.axis('off')
     
     
     
-def VRPCut(M, Ls):
+def VRPCut(M, Ls, itermax = 50):
     # INPUT: - M cardinalità gironi (?ACTUNG: M divide o no?)
     #        - Ls lista delle squadre
     
@@ -149,10 +130,13 @@ def VRPCut(M, Ls):
                 
     solver = SolverFactory('gurobi')
 
+    
+
     it = 0
     Pool = []
-    while it <= 50:
+    while it <= itermax:
         it += 1
+        print('iterazione: {}\n'.format(it))
 
         sol = solver.solve(model, tee=False)
 
@@ -166,27 +150,20 @@ def VRPCut(M, Ls):
         for i, j in model.x:
             if model.x[i, j]() > 0:
                 selected.append((i, j))
-        print(selected)
         
-        lista_coord = [(x,y) for _,x,y in Ls]
-        PlotSolution(lista_coord, lista_coord, selected)
+        # lista_coord = [(x,y) for _,x,y in Ls]
+        # PlotSolution(lista_coord, selected)
 
         Cuts = SubtourElimin(selected, M)
-        print("LB:", model.obj(), "Cuts: ", Cuts)
+        print("LB: {}\n".format(model.obj()), "Cuts: {}\n".format(Cuts))
 
         if Cuts == []:
-            print("Optimal solution found")
+            print("Optimal solution found !!")
             break
 
-        for S, lun in Cuts:
-            Pool.append((S, lun))
-            if lun < M:
-                print(1, sum(model.x[i, j]() for i in selected for j in S) )
-                model.arcs.add(sum(model.x[i, j] for i in S for j in S) >= lun + 1)
-            else: # lun > M
-                print(2, sum(model.x[i, j]() for i in S for j in S))
-                model.arcs.add(sum(model.x[i, j] for i in S for j in S) <= lun - 1)
-
+        for S in Cuts:
+            Pool.append(S)
+            model.arcs.add(sum(model.x[i] for i in S) <= len(S)-1)
 
     return selected
 
@@ -199,13 +176,22 @@ def SubtourElimin(selected, M):
     Cys = nx.simple_cycles(G)
     # print('Cys={}'.format(Cys))
 
-    Subtours = []
+    SubCycles = []
     for cycle in Cys:
         lun = len(cycle)
         if lun != M:
-            Subtours.append((cycle, lun))
+            SubCycles.append(cycle)
+    
+    SUBTOURS = []
+    for Ciclo in SubCycles:
+        Subtours = []
+        for nodo in Ciclo:
+            for lato in selected:
+                if lato[0] == nodo:
+                    Subtours.append(lato)
+        SUBTOURS.append(Subtours)
 
-    return Subtours
+    return SUBTOURS
 
 # -----------------------------------------------
 #   MAIN function
@@ -230,12 +216,18 @@ if __name__ == "__main__":
     # print( 'numero di lati del grafo = {}\n'.format(nx.number_of_edges(G)) )
     # print(G[1][1]['weight'])
     
-    M = 3
+    M = 2
+    lista_gironi = VRPCut(M, lista_dati, 100)
+    # print(lista_gironi)
+    # print(SubtourElimin(lista_gironi, M+1))
+    PlotSolution(lista_coord, lista_gironi)
 
-    Es = VRPCut(M, lista_dati)
     
-    # n = len(lista_dati)
-    # values = [1 for _ in range(n)]
-    # PlotTour(lista_coord, Es, values)
-
-    PlotSolution(lista_coord, lista_coord, Es)
+    output = open('Gironi.txt', 'w')
+    for i, girone in enumerate(SubtourElimin(lista_gironi, M+1)):
+        output.write("Girone {}:\n".format(i+1))
+        for lato in girone:
+            output.write("\t {}\n".format( lista_dati[lato[0]-1][0] ))
+    output.close()
+    
+    
