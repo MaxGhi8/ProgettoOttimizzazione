@@ -93,15 +93,15 @@ def DisegnaPunto(A, ax):
 def PlotSolution(Xs, Ws, Es):
     fig, ax = plt.subplots()
     for i, j in Es:
-        DisegnaSegmento(Xs[i], Ws[j], ax)
+        DisegnaSegmento(Xs[i-1], Xs[j-1], ax)
 
     ax.scatter([i for i, j in Xs[1:]], [j for i, j in Xs[1:]],
-               s=Ws[1:], alpha=0.3, cmap='viridis')
+                s=Ws[1:], alpha=0.3, cmap='viridis')
 
-    for i in range(len(Xs[:])):
-        ax.annotate(str(i+1), Xs[i])
+    # for i in range(len(Xs[:])):
+    #     ax.annotate(str(i+1), Xs[i])
 
-    plt.plot([Xs[0][0]], [Xs[0][1]], marker='s', color='red', alpha=0.5)
+    # plt.plot([Xs[0][0]], [Xs[0][1]], marker='s', color='red', alpha=0.5) # Depot
     plt.axis('square')
     plt.axis('off')
     
@@ -136,6 +136,9 @@ def VRPCut(M, Ls):
     model.indegree = ConstraintList()
     for j in model.N:
         model.indegree.add(expr=sum(model.x[v, w] for v, w in G.in_edges(j)) == 1)
+        
+    # Vincoli gironi da M squadre
+    
     
     # Solve the model
     sol = SolverFactory('glpk').solve(model, tee=True)
@@ -161,27 +164,27 @@ if __name__ == "__main__":
     
     lista_dati = ParseFile(filename)
     # print(lista_dati[0:2])
-    print('numero di squadre = {}\n'.format(len(lista_dati))) #stampo a video il numero di squadre
+    # print('numero di squadre = {}\n'.format(len(lista_dati))) # stampo a video il numero di squadre
     
-    lista_coord = [(x,y) for _,x,y in lista_dati] #lista di tuple con solo le coordinate
+    lista_coord = [(x,y) for _,x,y in lista_dati] # lista di tuple con solo le coordinate
     # print(lista_coord[0:2])
     lista_coord_1 = [x for _,x,_ in lista_dati] 
     lista_coord_2 = [y for _,_,y in lista_dati]
     
     lista_costi = CostList(lista_dati)
     # print(lista_costi)
-    print('numero di coppie = {}\n'.format(len(lista_costi))) # per check
+    # print('numero di coppie = {}\n'.format(len(lista_costi))) # per check
     
     G = BuildGraph(lista_costi)
-    nx.draw(G) 
-    print( 'numero di nodi del grafo = {}\n'.format(nx.number_of_nodes(G)) )
-    print( 'numero di lati del grafo = {}\n'.format(nx.number_of_edges(G)) )
-    print(G[1][1]['weight'])
+    # nx.draw(G) 
+    # print( 'numero di nodi del grafo = {}\n'.format(nx.number_of_nodes(G)) )
+    # print( 'numero di lati del grafo = {}\n'.format(nx.number_of_edges(G)) )
+    # print(G[1][1]['weight'])
     
-    Es = VRPCut(2, lista_dati)
+    Es = VRPCut(31, lista_dati)
     
     # n = len(lista_dati)
     # values = [1 for _ in range(n)]
     # PlotTour(lista_coord, Es, values)
 
-    PlotSolution(lista_coord_1, lista_coord_2, Es)
+    PlotSolution(lista_coord, lista_coord, Es)
