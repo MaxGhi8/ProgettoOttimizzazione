@@ -13,6 +13,7 @@ import matplotlib.pyplot as plt
 def ParseFile(filename):
     # OUTPUT: Ls lista con i nomi delle squadre e le due coordinate 
     doc = open(filename, 'r', encoding = 'utf-8')
+    # for _ in range(50):
     doc.readline() # Salto la prima linea con le intestazioni
     # Leggo i circoli e faccio una lista di liste, ogni sottolista contiene
     # ordinatamente nome squadra come stringa e le due coordinate come float
@@ -54,39 +55,7 @@ def BuildGraph(Cs):
     # aggiungo i lati con i costi associati
     G.add_weighted_edges_from(Cs) # se esiste già non lo riaggiunge
     return G
-
-def DisegnaSegmento(A, B, ax):
-    """ 
-    Disegna un segmento nel piano dal punto A a al punto B
-    Vedi manuale a: http://matplotlib.org/api/pyplot_api.html
-    """
-    # Disegna il segmento
-    ax.plot([A[0], B[0]], [A[1], B[1]], 'b', lw=0.75)
-    # Disegna gli estremi del segmento
-    DisegnaPunto(A, ax)
-    DisegnaPunto(B, ax)
-
-
-def DisegnaPunto(A, ax):
-    """
-    Disegna un punto nel piano
-    """
-    ax.plot([A[0]], [A[1]], 'bo', alpha=0.5)
-
-
-def PlotSolution(Xs, Es):
-    fig, ax = plt.subplots()
-    for i, j in Es:
-        DisegnaSegmento(Xs[i-1], Xs[j-1], ax)
-
-    ax.scatter([i for i, j in Xs[1:]], [j for i, j in Xs[1:]], alpha=0.3, cmap='viridis')
-
-    for i in range(len(Xs[:])):
-        ax.annotate(str(i+1), Xs[i])
-
-    plt.axis('square')
-    plt.axis('off')
-    
+   
     
     
 def VRPCut(M, Ls, itermax = 50):
@@ -123,17 +92,14 @@ def VRPCut(M, Ls, itermax = 50):
     model.arcs = ConstraintList()
     
     # Vincoli no coppie
-    if M > 2:
+    if M > 3:
         for i, j in G.edges():
             if i < j:
                 model.arcs.add(model.x[i, j] + model.x[j, i] <= 1)
                 
-    solver = SolverFactory('gurobi')
-
-    
+    solver = SolverFactory('gurobi')    
 
     it = 0
-    Pool = []
     while it <= itermax:
         it += 1
         print('iterazione: {}\n'.format(it))
@@ -148,13 +114,13 @@ def VRPCut(M, Ls, itermax = 50):
 
         selected = []
         for i, j in model.x:
-            if model.x[i, j]() > 0:
+            if model.x[i, j]() > 0.5:
                 selected.append((i, j))
         
         # lista_coord = [(x,y) for _,x,y in Ls]
         # PlotSolution(lista_coord, selected)
 
-        Cuts = SubtourElimin(selected, M)
+        Cuts = SubtourElimin(selected, M, M-1)
         print("LB: {}\n".format(model.obj()), "Cuts: {}\n".format(Cuts))
 
         if Cuts == []:
@@ -162,42 +128,78 @@ def VRPCut(M, Ls, itermax = 50):
             break
 
         for S in Cuts:
-            Pool.append(S)
             model.arcs.add(sum(model.x[i] for i in S) <= len(S)-1)
+
 
     return selected
 
-def SubtourElimin(selected, M):
-    G = nx.DiGraph()
+def SubtourElimin(selected, M, N=-1):
+    G = nx.Graph()
 
     for i, j in selected:
         G.add_edge(i, j)
 
-    Cys = nx.simple_cycles(G)
-    # print('Cys={}'.format(Cys))
+    # Cys = nx.simple_cycles(G)
+    Cys = nx.cycle_basis(G)
+    print('Selected={}\n'.format(selected))
+    print('Cys={}\n'.format(Cys))
 
     SubCycles = []
     for cycle in Cys:
         lun = len(cycle)
-        if lun != M:
+        if lun != M and lun != N:
             SubCycles.append(cycle)
     
     SUBTOURS = []
     for Ciclo in SubCycles:
         Subtours = []
+        Subtours_reversed = []
         for nodo in Ciclo:
             for lato in selected:
                 if lato[0] == nodo:
                     Subtours.append(lato)
+                    Subtours_reversed.append( (lato[1], lato[0]))
         SUBTOURS.append(Subtours)
+        SUBTOURS.append(Subtours_reversed)
 
     return SUBTOURS
+
+def DisegnaPunto(A, ax):
+    """
+    Disegna un punto nel piano
+    """
+    ax.plot([A[0]], [A[1]], 'bo', alpha=0.5)
+
+def DisegnaSegmento(A, B, ax):
+    """ 
+    Disegna un segmento nel piano dal punto A a al punto B
+    Vedi manuale a: http://matplotlib.org/api/pyplot_api.html
+    """
+    # Disegna il segmento
+    ax.plot([A[0], B[0]], [A[1], B[1]], 'b', lw=0.75)
+    # Disegna gli estremi del segmento
+    DisegnaPunto(A, ax)
+    DisegnaPunto(B, ax)
+
+def PlotSolution(Xs, Es):
+    fig, ax = plt.subplots()
+    for i, j in Es:
+        DisegnaSegmento(Xs[i-1], Xs[j-1], ax)
+
+    ax.scatter([i for i, j in Xs[1:]], [j for i, j in Xs[1:]], alpha=0.3, cmap='viridis')
+
+    for i in range(len(Xs[:])):
+        ax.annotate(str(i+1), Xs[i])
+
+    plt.axis('square')
+    plt.axis('off')
 
 # -----------------------------------------------
 #   MAIN function
 # -----------------------------------------------
 if __name__ == "__main__":
-    filename = 'Squadre_D1_Maschile-giusto.csv'
+    # filename = 'Squadre_D1_Maschile-giusto.csv'
+    filename = 'Squadre_D1_Femminile.csv'
     
     lista_dati = ParseFile(filename)
     # print(lista_dati[0:2])
@@ -216,8 +218,8 @@ if __name__ == "__main__":
     # print( 'numero di lati del grafo = {}\n'.format(nx.number_of_edges(G)) )
     # print(G[1][1]['weight'])
     
-    M = 2
-    lista_gironi = VRPCut(M, lista_dati, 100)
+    M = 6
+    lista_gironi = VRPCut(M, lista_dati, 10000)
     # print(lista_gironi)
     # print(SubtourElimin(lista_gironi, M+1))
     PlotSolution(lista_coord, lista_gironi)
