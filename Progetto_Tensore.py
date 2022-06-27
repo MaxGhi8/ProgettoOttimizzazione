@@ -265,8 +265,8 @@ if __name__ == "__main__":
     # print(SubtourElimin(lista_gironi, M+1))
     PlotSolution(lista_coord, lista_gironi)
 
-    
-    output = open('Gironi.txt', 'w')
+    output_name = 'Gironi.txt'
+    output = open(output_name, 'w')
     for i, girone in enumerate(SubtourElimin(lista_gironi, M+1)):
         output.write("Girone {}:\n".format(i+1))
         for lato in girone:
