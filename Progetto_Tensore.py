@@ -213,7 +213,7 @@ def DisegnaPunto(A, ax):
 
 def DisegnaSegmento(A, B, ax):
     """ 
-    Disegna un segmento nel piano dal punto A a al punto B
+    Disegna un segmento nel piano dal punto A al punto B
     Vedi manuale a: http://matplotlib.org/api/pyplot_api.html
     """
     # Disegna il segmento
@@ -234,6 +234,17 @@ def PlotSolution(Xs, Es):
 
     plt.axis('square')
     plt.axis('off')
+    
+def CalcolaCosto(lista_gironi, lista_coord):
+    costo = 0
+    for girone in lista_gironi:
+        squadre_girone = list(map(lambda x: x[0], girone))
+        for i, squadra1 in enumerate(squadre_girone):
+            for j, squadra2 in enumerate(squadre_girone):
+                if i > j:
+                    costo = costo + sqrt((lista_coord[squadra1-1][0] - lista_coord[squadra2-1][0])**2
+                                         + (lista_coord[squadra1-1][1] - lista_coord[squadra2-1][1])**2)
+    return costo
 
 # -----------------------------------------------
 #   MAIN function
@@ -244,6 +255,8 @@ if __name__ == "__main__":
     
     lista_dati = ParseFile(filename)
     # print(lista_dati[0:2])
+    for i, squadra in enumerate(lista_dati):
+        print('Squadra {}: {}'.format(i+1, lista_dati[i][0]))
     print('numero di squadre = {}\n'.format(len(lista_dati))) # stampo a video il numero di squadre
     
     lista_coord = [(x,y) for _,x,y in lista_dati] # lista di tuple con solo le coordinate
@@ -259,18 +272,30 @@ if __name__ == "__main__":
     # print( 'numero di lati del grafo = {}\n'.format(nx.number_of_edges(G)) )
     # print(G[1][1]['weight'])
     
-    M = 6
-    lista_gironi = VRPCut(M, lista_dati, 10000)
-    # print(lista_gironi)
-    # print(SubtourElimin(lista_gironi, M+1))
-    PlotSolution(lista_coord, lista_gironi)
+    
+    # mi calcolo la soluzione (ci mette tanto)
+    # M = 6
+    # lista_gironi = VRPCut(M, lista_dati, 10000)
+    # # print(lista_gironi)
+    # # print(SubtourElimin(lista_gironi, M+1))
+    # PlotSolution(lista_coord, lista_gironi)
 
-    output_name = 'Gironi.txt'
-    output = open(output_name, 'w')
-    for i, girone in enumerate(SubtourElimin(lista_gironi, M+1)):
-        output.write("Girone {}:\n".format(i+1))
-        for lato in girone:
-            output.write("\t {}\n".format( lista_dati[lato[0]-1][0] ))
-    output.close()
+    # output_name = 'Gironi.txt'
+    # output = open(output_name, 'w')
+    # for i, girone in enumerate(SubtourElimin(lista_gironi, M+1)):
+    #     output.write("Girone {}:\n".format(i+1))
+    #     for lato in girone:
+    #         output.write("\t {}\n".format( lista_dati[lato[0]-1][0] ))
+    # output.close()
+    
+    
+    lista_gironi_D1_f = [[(2,7), (7,5), (5,9), (9,13), (13,2)],
+                         [(19, 24), (24, 15), (15,16), (16,12), (12,19)],
+                         [(17,26), (26, 18), (18,28), (28,22), (22,11), (11,17)],
+                         [(3,25), (25,23), (23,20), (20,4), (4,27), (27,3)],
+                         [(6,14), (14,8), (8,21), (21,10), (10,1), (1,6)]]
+    
+    costo_tot = CalcolaCosto(lista_gironi_D1_f, lista_coord)
+    print('Costo totale gironi soluzione ottima = {}'.format(costo_tot))
     
     
