@@ -1,5 +1,5 @@
 
-from math import sqrt, ceil
+from math import sqrt
 import numpy as np
 # Import the NetworkX library per fare i grafi
 import networkx as nx
@@ -57,82 +57,52 @@ def BuildGraph(Cs):
     return G
    
     
-def Tau(n, M):
-    # Costruzione di tau
-    tau = list(M for _ in range(ceil(n/M)))
-    resto = sum(tau) - n
-    for i in range(resto):
-        tau[i] = tau[i] - 1
-    return tau
-    
     
 def VRPCut(M, Ls, itermax = 50):
     # INPUT: - M cardinalità gironi (?ACTUNG: M divide o no?)
     #        - Ls lista delle squadre
     
     # Build a directed graph out of the data
-    n = len(Ls) #numero di dati (numero di squadre)
     Cs = CostList(Ls)
     G = BuildGraph(Cs)
-    tau = Tau(n, M)
-    kappa = len(tau) # numero di cluster (= gironi)
 
     # Build ILP Model
     model = ConcreteModel()
     
+    n = len(Ls) # numero di nodi (squadre)
     model.N = RangeSet(n)
-    model.K = RangeSet(kappa)
 
     # TODO: introduce only usefull variables (no arc, no variable)
-    model.x = Var(model.N, model.N, model.K, domain=Binary)
+    model.x = Var(model.N, model.N, domain=Binary)
 
     # Objective function of arc variables
-    model.obj = Objective(expr=sum(G[i][j]['weight']*model.x[i, j, k] for i, j in G.edges() for k in model.K))
+    model.obj = Objective(expr=sum(G[i][j]['weight']*model.x[i, j] for i, j in G.edges()))
 
     # Vincoli archi uscenti
     model.outdegree = ConstraintList()
     for i in model.N:
-        model.outdegree.add(expr=sum(model.x[i, j, k] for j in model.N for k in model.K) == 1)
+        model.outdegree.add(expr=sum(model.x[v, w] for v, w in G.out_edges(i)) == 1)
 
     # Vincoli archi entranti    
     model.indegree = ConstraintList()
     for j in model.N:
-        model.indegree.add(expr=sum(model.x[i, j, k] for i in model.N for k in model.K) == 1)
+        model.indegree.add(expr=sum(model.x[v, w] for v, w in G.in_edges(j)) == 1)
         
-    # Vincoli cicli
-    model.cicli = ConstraintList()
-    for i in model.N:
-        for j in model.N:
-            for k in model.K:
-                model.cicli.add(expr = sum(model.x[j, s, k] for s in model.N) - model.x[i, j, k] >= 0)
-        
-    # Vincoli unicità
-    model.unic = ConstraintList()
-    for i in model.N:
-        for j in model.N:
-            model.unic.add(expr = sum(model.x[i, j, k] for k in model.K) <= 1)
-            
-    # Vincolo tau
-    model.tau = ConstraintList()
-    for k in model.K:
-        model.tau.add(expr = sum(model.x[i, j, k] for i in model.N for j in model.N) == tau[k-1])
+    # Vincoli gironi da M squadre
+    model.arcs = ConstraintList()
     
     # Vincoli no coppie
-    model.onedir = ConstraintList()
     if M > 3:
-        for k in model.K:
-            for i, j in G.edges():
-                if i < j:
-                    model.onedir.add(model.x[i, j, k] + model.x[j, i, k] <= 1)
+        for i, j in G.edges():
+            if i < j:
+                model.arcs.add(model.x[i, j] + model.x[j, i] <= 1)
                 
-    # Vincoli subtours
-    model.subtours = ConstraintList()            
-    
     solver = SolverFactory('gurobi')    
 
     it = 0
     while it <= itermax:
         it += 1
+        print('iterazione: {}\n'.format(it))
 
         sol = solver.solve(model, tee=False)
 
@@ -141,37 +111,26 @@ def VRPCut(M, Ls, itermax = 50):
         # Check solution status
         if sol_json['Solver'][0]['Status'] != 'ok':
             return None
-        
-        counter = 0
+
         selected = []
-        for k in model.K:
-            print('iterazione: {}\t k = {}\n'.format(it, k))
-            
-            selected_k = []
-            for i in model.N:
-                for j in model.N:
-                    if model.x[i, j, k]() > 0.5:
-                        selected_k.append((i, j))
-            
-            # lista_coord = [(x,y) for _,x,y in Ls]
-            # PlotSolution(lista_coord, selected)
+        for i, j in model.x:
+            if model.x[i, j]() > 0.5:
+                selected.append((i, j))
+        
+        # lista_coord = [(x,y) for _,x,y in Ls]
+        # PlotSolution(lista_coord, selected)
 
-            Cuts_k = SubtourElimin(selected_k, M, M-1)
-            print("Cuts_k: {}\n".format(Cuts_k))
+        Cuts = SubtourElimin(selected, M, M-1)
+        print("LB: {}\n".format(model.obj()), "Cuts: {}\n".format(Cuts))
 
-            if Cuts_k == []:
-                counter = counter + 1
-                
-            for faccia in model.K:
-                for S in Cuts_k:
-                    model.subtours.add(sum(model.x[i, faccia] for i in S) <= len(S)-1)
-            
-            selected.append(selected_k)
-            
-        if counter == k:
+        if Cuts == []:
             print("Optimal solution found !!")
             break
-        
+
+        for S in Cuts:
+            model.arcs.add(sum(model.x[i] for i in S) <= len(S)-1)
+
+
     return selected
 
 def SubtourElimin(selected, M, N=-1):
@@ -182,8 +141,8 @@ def SubtourElimin(selected, M, N=-1):
 
     # Cys = nx.simple_cycles(G)
     Cys = nx.cycle_basis(G)
-    # print('Selected={}\n'.format(selected))
-    # print('Cys={}\n'.format(Cys))
+    print('Selected={}\n'.format(selected))
+    print('Cys={}\n'.format(Cys))
 
     SubCycles = []
     for cycle in Cys:
@@ -272,5 +231,4 @@ if __name__ == "__main__":
         for lato in girone:
             output.write("\t {}\n".format( lista_dati[lato[0]-1][0] ))
     output.close()
-    
     
