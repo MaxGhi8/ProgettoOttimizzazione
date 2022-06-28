@@ -135,12 +135,47 @@ def ClusterAssignment(centre, data, tau):
         
     return T
 
-def PlotSolution(cluster):
+def PlotSolution(cluster, centre):
     k = len(cluster)
     for girone in cluster:
         plt.scatter(list(map(lambda x: x[1], girone)), list(map(lambda x: x[2], girone)))
+    for centro in centre:
+        plt.scatter(centro[0],centro[1], c='black', marker='*')
     plt.show()
     
+def PlotCentre(centre):
+    for centro in centre:
+        plt.scatter(centro[0],centro[1])
+    plt.show()
+    
+def CalcolaCosto(cluster):
+    costo = 0
+    for girone in cluster:
+        for i, squadra1 in enumerate(girone):
+            for j, squadra2 in enumerate(girone):
+                if i > j:
+                    costo = costo + sqrt((squadra1[1] - squadra2[1])**2 + (squadra1[2] - squadra2[2])**2)
+    return costo
+
+def MaxDistanza(coord, k):
+    centre = []
+    m = len(coord)
+    index_centre = np.random.choice(list(range(m)), 1)
+    centre.append(coord[int(index_centre)])
+    coord.remove(centre[0])
+    for i in range(k-1):
+        dist_max = 0
+        centre_new = coord[0]
+        for squadra in coord:
+            dist = 0
+            for centro in centre:
+                dist = dist + (squadra[0] - centro[0])**2 + (squadra[1] - centro[1])**2
+            if dist > dist_max:
+                dist_max = dist
+                centre_new = squadra
+        centre.append(centre_new)
+        coord.remove(centre_new)
+    return centre
 
 # -----------------------------------------------
 #   MAIN function
@@ -159,17 +194,28 @@ if __name__ == "__main__":
     
     M = 6
     print(Tau(m,M))
-    index_centre = np.random.choice(list(range(m)), len(Tau(m,M)), False)
+    k = len(Tau(m,M)) # numero di gironi 
+    
+    # Scelta di centri casuali
+    index_centre = np.random.choice(list(range(m)), k, False)
     centre = []
     for i in index_centre:
         centre.append(lista_coord[i])
     print(centre)
+    # Scelta di centri secondo la massima distanza
+    # centre = MaxDistanza(lista_coord, k)
+    # print('Centri: {}\n'.format(centre))
+    # PlotCentre(centre)
+    
+    # Assegnazione dei gironi
     max_it = 50
     cluster, centre, it = cKM(lista_dati, centre, max_it, M)
     print('Gironi: {}\n'.format(cluster))
     # cluster è lista di liste di liste
     
-    PlotSolution(cluster)
+    PlotSolution(cluster, centre)
+    
+    print('Costo: {}\n'.format(CalcolaCosto(cluster)))
 
     output = open('Gironi_D1_Maschile.txt', 'w')
     # output = open('Gironi_D1_Femminile.txt', 'w')
