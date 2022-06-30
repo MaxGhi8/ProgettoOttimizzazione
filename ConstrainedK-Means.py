@@ -1,10 +1,3 @@
-# -*- coding: utf-8 -*-
-"""
-Created on Mon Jun 27 10:05:28 2022
-
-@author: alice e max
-"""
-
 from math import sqrt, ceil
 import numpy as np
 
@@ -113,7 +106,7 @@ def ClusterAssignment(centre, data, tau):
     for i in model.M:
         model.elemento.add(expr=sum(model.x[h,i] for h in model.K) == 1)
         
-    solver = SolverFactory('glpk') 
+    solver = SolverFactory('gurobi') 
     
     sol = solver.solve(model, tee=False)
 
@@ -154,7 +147,7 @@ def CalcolaCosto(cluster):
         for i, squadra1 in enumerate(girone):
             for j, squadra2 in enumerate(girone):
                 if i > j:
-                    costo = costo + sqrt((squadra1[1] - squadra2[1])**2 + (squadra1[2] - squadra2[2])**2)
+                    costo = costo + (squadra1[1] - squadra2[1])**2 + (squadra1[2] - squadra2[2])**2
     return costo
 
 def MaxDistanza(coord, k):

@@ -33,7 +33,7 @@ def CostList(Ls):
     for i in range(n):
         for j in range(n):
             if j != i:
-                costo = sqrt((Ls[i][1] - Ls[j][1])**2 + (Ls[i][2] - Ls[j][2])**2)
+                costo = (Ls[i][1] - Ls[j][1])**2 + (Ls[i][2] - Ls[j][2])**2
                 # Delta_phi = (Ls[i][1] - Ls[j][1])/2
                 # costo = 2*6360*np.arcsin(sqrt( np.sin(Delta_phi)**2 +
                 #                          ( 1-np.sin(Delta_phi)**2 - np.sin((Ls[i][1] + Ls[j][1])/2 )**2 )*
@@ -272,7 +272,7 @@ if __name__ == "__main__":
     # print( 'numero di lati del grafo = {}\n'.format(nx.number_of_edges(G)) )
     # print(G[1][1]['weight'])
     
-    
+    """
     # mi calcolo la soluzione (ci mette tanto)
     # M = 6
     # lista_gironi = VRPCut(M, lista_dati, 10000)
@@ -287,15 +287,28 @@ if __name__ == "__main__":
     #     for lato in girone:
     #         output.write("\t {}\n".format( lista_dati[lato[0]-1][0] ))
     # output.close()
+    """
     
-    
-    lista_gironi_D1_f = [[(2,7), (7,5), (5,9), (9,13), (13,2)],
+    # Questa è la soluzione che abbiamo trovato noi con il metodo di programmazione 
+    # lineare intera, ci emtto un po' di tempo quindi abbiamo salvato la solzione
+    lista_gironi_D1_f_ottima = [[(2,7), (7,5), (5,9), (9,13), (13,2)],
                          [(19, 24), (24, 15), (15,16), (16,12), (12,19)],
                          [(17,26), (26, 18), (18,28), (28,22), (22,11), (11,17)],
                          [(3,25), (25,23), (23,20), (20,4), (4,27), (27,3)],
                          [(6,14), (14,8), (8,21), (21,10), (10,1), (1,6)]]
     
-    costo_tot = CalcolaCosto(lista_gironi_D1_f, lista_coord)
+    costo_tot = CalcolaCosto(lista_gironi_D1_f_ottima, lista_coord)
     print('Costo totale gironi soluzione ottima = {}'.format(costo_tot))
+    
+    lista_gironi_D1_f_ufficiale = [[(18,17), (17,28), (28,26), (26,3), (3,6), (6,18)],
+                                 [(27,5), (5,2), (2,9), (9,13), (13,7), (7,27)],
+                                 [(23,4), (4,20), (20,25), (25,21), (21,8), (8,23)],
+                                 [(19,15), (15,24), (24,16), (16,12), (12,19)],
+                                 [(11,22), (22,1), (1,10), (10,14), (14,11)]]
+    
+    costo_tot_ufficiale = CalcolaCosto(lista_gironi_D1_f_ufficiale, lista_coord)
+    print('Costo totale gironi reali = {}'.format(costo_tot_ufficiale))
+    
+
     
     

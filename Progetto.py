@@ -33,7 +33,7 @@ def CostList(Ls):
     for i in range(n):
         for j in range(n):
             if j != i:
-                costo = sqrt((Ls[i][1] - Ls[j][1])**2 + (Ls[i][2] - Ls[j][2])**2)
+                costo = (Ls[i][1] - Ls[j][1])**2 + (Ls[i][2] - Ls[j][2])**2
                 # Delta_phi = (Ls[i][1] - Ls[j][1])/2
                 # costo = 2*6360*np.arcsin(sqrt( np.sin(Delta_phi)**2 +
                 #                          ( 1-np.sin(Delta_phi)**2 - np.sin((Ls[i][1] + Ls[j][1])/2 )**2 )*
