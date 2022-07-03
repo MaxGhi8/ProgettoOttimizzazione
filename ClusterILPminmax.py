@@ -5,7 +5,7 @@ import numpy as np
 import networkx as nx
 
 from pyomo.environ import ConcreteModel, Var, Objective, SolverFactory
-from pyomo.environ import minimize, Binary, RangeSet, ConstraintList
+from pyomo.environ import minimize, Reals, Binary, RangeSet, ConstraintList
 
 import matplotlib.pyplot as plt
 
@@ -69,16 +69,18 @@ def ILP(M, Ls):
     # Variabili
     model.y = Var(model.N, model.K, domain = Binary)
     model.z = Var(model.N, model.N, model.K, domain = Binary)
+    model.x = Var(model.K, domain = Reals)
 
-    # Objective function of arc variables:
-    # Distanze al quadrato
-    # model.obj = Objective(expr = sum(Cm[i-1,j-1]*model.z[i,j,k] for i in model.N for j in model.N for k in model.K), 
-    #                       sense = minimize)
+    # Objective function of arc variables
+    model.obj = Objective(expr = sum(model.x[k] for k in model.K), sense = minimize)
     
-    # Distanze
-    model.obj = Objective(expr = sum(sqrt(Cm[i-1,j-1])*model.z[i,j,k] for i in model.N for j in model.N for k in model.K), 
-                          sense = minimize)
-
+    # Vincoli linearizzazione min-max
+    model.minmax = ConstraintList()
+    for i in model.N:
+        for j in model.N:
+            for k in model.K:
+                model.minmax.add(expr = model.x[k] >= Cm[i-1,j-1]*model.z[i,j,k])
+    
     # Vincoli (y_{i,k} = 1, y_{j,k} = 1) <--> (z_{i,j,k} = 1)
     model.iff = ConstraintList()            
     for i in model.N:
@@ -133,19 +135,8 @@ def PlotSolution(dict_gironi, lista_coord):
         plt.scatter( list(map(lambda x: lista_coord[x[1]-1][0], squadre_girone)),
                     list(map(lambda x: lista_coord[x[1]-1][1], squadre_girone)) )
     plt.show()
-    
-def CalcolaCosto(dict_gironi, lista_coord):
-    costo = 0
-    for girone in dict_gironi:
-        squadre_girone = dict_gironi[girone]
-        for squadra1 in squadre_girone:
-            for squadra2 in squadre_girone:
-                distanza = sqrt((lista_coord[squadra1[1]-1][0] - lista_coord[squadra2[1]-1][0])**2 +
-                                        (lista_coord[squadra1[1]-1][1] - lista_coord[squadra2[1]-1][1])**2)
-                costo = costo + distanza
-    return costo/2
 
-def CalcolaCosto2(dict_gironi, lista_coord):
+def CalcolaCosto(dict_gironi, lista_coord):
     costo = 0
     for girone in dict_gironi:
         squadre_girone = dict_gironi[girone]
@@ -169,14 +160,15 @@ def CalcolaCosto_minmax(dict_gironi, lista_coord):
                 if distanza_al_quadrato > costo_max_girone:
                     costo_max_girone = distanza_al_quadrato         
         costo_tot = costo_tot + costo_max_girone
+                # print('Distanza al quadrato da {} a {} è {}'.format(squadra1[1], squadra2[1], distanza_al_quadrato ))
     return costo_tot
 
 # -----------------------------------------------
 #   MAIN function
 # -----------------------------------------------
 if __name__ == "__main__":
-    filename = 'Squadre_D1_Maschile.csv'
-    # filename = 'Squadre_D1_Femminile.csv'
+    # filename = 'Squadre_D1_Maschile-giusto.csv'
+    filename = 'Squadre_D1_Femminile.csv'
     
     lista_dati = ParseFile(filename)
     # print(lista_dati[0:2])
@@ -193,15 +185,12 @@ if __name__ == "__main__":
     M = 6
     [dict_gironi, costo_totale] = ILP(M, lista_dati)
     print(dict_gironi)
-    
-    print("Costo totale somme distanze gironi ottimi = {}".format(CalcolaCosto(dict_gironi, lista_coord)))
-    print("Costo totale somme distanze al quadrato gironi ottimi = {}".format(CalcolaCosto2(dict_gironi, lista_coord)))
-    print('Somma delle distanze massime al quadrato per i gironi ottimali = {}'.format(CalcolaCosto_minmax(dict_gironi, lista_coord)))
+    print("Somma delle distanze massime al quadrato per i gironi ottimali = {}".format(costo_totale))
     
     PlotSolution(dict_gironi, lista_coord)
     
     # Stampo file in output
-    output_name = 'Gironi_ILP_D1_m.txt'
+    output_name = 'Gironi_ILP_D1_f.txt'
     output = open(output_name, 'w')
     for key in dict_gironi:
         output.write("{}:\n".format(key))
@@ -209,6 +198,9 @@ if __name__ == "__main__":
         for squadra in girone_k:
             output.write("\t{}\n".format(squadra[0]))
     output.close()
+    
+    
+    print('Costo totale somme distanze al quadrato gironi ottimi = {}'.format(CalcolaCosto(dict_gironi, lista_coord)))
     
     dict_D1_f = {}
     dict_D1_f['Girone1'] = [("NTC LURAGO D'ERBA",18), 
@@ -240,9 +232,9 @@ if __name__ == "__main__":
                              ('TENNIS CLUB LODI', 10),
                              ('GTENNIS ', 14)]
     
-    print('Costo totale somme distanze gironi reali = {}'.format(CalcolaCosto(dict_D1_f, lista_coord)))
-    print('Costo totale somme distanze al quadrato gironi reali = {}'.format(CalcolaCosto2(dict_D1_f, lista_coord)))
+    print('Costo totale somme distanze al quadrato gironi reali = {}'.format(CalcolaCosto(dict_D1_f, lista_coord)))
     print('Somma delle distanze massime al quadrato per i gironi reali = {}'.format(CalcolaCosto_minmax(dict_D1_f, lista_coord)))
+    
     
     
 
@@ -254,7 +246,7 @@ if __name__ == "__main__":
                                   [(19,15), (15,24), (24,16), (16,12), (12,19)],
                                   [(11,22), (22,1), (1,10), (10,14), (14,11)]]
     
-    costo_tot_ufficiale = CalcolaCosto2(lista_gironi_D1_f_ufficiale, lista_coord)
+    costo_tot_ufficiale = CalcolaCosto(lista_gironi_D1_f_ufficiale, lista_coord)
     print('Costo totale gironi reali = {}'.format(costo_tot_ufficiale))
     
     nostra_sol = [[(28,26), (26,22), (22,18), (18,17), (17,28)],
@@ -263,9 +255,9 @@ if __name__ == "__main__":
                   [(12,15), (15,16), (16,19), (19,24), (24,12)],
                   [(1,6), (6,8), (8,10), (10,11), (11,14), (14,1)]]
     
-    c = CalcolaCosto2(nostra_sol, lista_coord)
+    c = CalcolaCosto(nostra_sol, lista_coord)
     print('Costo totale gironi reali = {}'.format(c))
     
-    # costo_tot = CalcolaCosto2(lista_gironi_D1_f_ottima, lista_coord)
+    # costo_tot = CalcolaCosto(lista_gironi_D1_f_ottima, lista_coord)
     # print('Costo totale gironi soluzione ottima = {}'.format(costo_tot))
     """

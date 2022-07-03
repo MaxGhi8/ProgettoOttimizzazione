@@ -241,9 +241,9 @@ def CalcolaCosto(lista_gironi, lista_coord):
         squadre_girone = list(map(lambda x: x[0], girone))
         for i, squadra1 in enumerate(squadre_girone):
             for j, squadra2 in enumerate(squadre_girone):
-                if i > j:
-                    costo = costo + sqrt((lista_coord[squadra1-1][0] - lista_coord[squadra2-1][0])**2
-                                         + (lista_coord[squadra1-1][1] - lista_coord[squadra2-1][1])**2)
+                if i < j:
+                    costo = costo + ((lista_coord[squadra1-1][0] - lista_coord[squadra2-1][0])**2 +
+                    (lista_coord[squadra1-1][1] - lista_coord[squadra2-1][1])**2)
     return costo
 
 # -----------------------------------------------

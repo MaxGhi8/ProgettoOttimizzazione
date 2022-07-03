@@ -129,7 +129,7 @@ def ClusterAssignment(centre, data, tau):
     return T
 
 def PlotSolution(cluster, centre):
-    k = len(cluster)
+    # k = len(cluster)
     for girone in cluster:
         plt.scatter(list(map(lambda x: x[1], girone)), list(map(lambda x: x[2], girone)))
     for centro in centre:
@@ -151,10 +151,13 @@ def CalcolaCosto(cluster):
     return costo
 
 def MaxDistanza(coord, k):
+    """ INPUT: - coord: lista di coordinate
+    - k: numero totale di cluster
+    """
     centre = []
-    m = len(coord)
+    m = len(coord) # numero dei punti
     index_centre = np.random.choice(list(range(m)), 1)
-    centre.append(coord[int(index_centre)])
+    centre.append(coord[int(index_centre)]) # scegliamo il primo punto casuale
     coord.remove(centre[0])
     for i in range(k-1):
         dist_max = 0
@@ -174,8 +177,8 @@ def MaxDistanza(coord, k):
 #   MAIN function
 # -----------------------------------------------
 if __name__ == "__main__": 
-    filename = 'Squadre_D1_Maschile.csv'
-    # filename = 'Squadre_D1_Femminile.csv'
+    # filename = 'Squadre_D1_Maschile.csv'
+    filename = 'Squadre_D1_Femminile.csv'
     
     lista_dati = ParseFile(filename)
     m = len(lista_dati)
@@ -190,15 +193,19 @@ if __name__ == "__main__":
     k = len(Tau(m,M)) # numero di gironi 
     
     # Scelta di centri casuali
-    index_centre = np.random.choice(list(range(m)), k, False)
-    centre = []
-    for i in index_centre:
-        centre.append(lista_coord[i])
-    print(centre)
+    # index_centre = np.random.choice(list(range(m)), k, False)
+    # centre = []
+    # for i in index_centre:
+    #     centre.append(lista_coord[i])
+    # print(centre)
+    
+    # OSSERVAZIONE: il metodo farthest_distance comporta un costo più stabile 
+    # rispetto a quello che segue dalla scelta dei centri casuali.
+    
     # Scelta di centri secondo la massima distanza
-    # centre = MaxDistanza(lista_coord, k)
-    # print('Centri: {}\n'.format(centre))
-    # PlotCentre(centre)
+    centre = MaxDistanza(lista_coord, k)
+    print('Centri: {}\n'.format(centre))
+    PlotCentre(centre)
     
     # Assegnazione dei gironi
     max_it = 50
