@@ -175,8 +175,8 @@ def CalcolaCosto_minmax(dict_gironi, lista_coord):
 #   MAIN function
 # -----------------------------------------------
 if __name__ == "__main__":
-    filename = 'Squadre_D1_Maschile.csv'
-    # filename = 'Squadre_D1_Femminile.csv'
+    # filename = 'Squadre_D1_Maschile.csv'
+    filename = 'Squadre_D1_Femminile.csv'
     
     lista_dati = ParseFile(filename)
     # print(lista_dati[0:2])
@@ -244,7 +244,7 @@ if __name__ == "__main__":
     print('Costo totale somme distanze al quadrato gironi reali = {}'.format(CalcolaCosto2(dict_D1_f, lista_coord)))
     print('Somma delle distanze massime al quadrato per i gironi reali = {}'.format(CalcolaCosto_minmax(dict_D1_f, lista_coord)))
     
-    
+    PlotSolution(dict_D1_f, lista_coord)
 
     
     """
