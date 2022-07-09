@@ -11,10 +11,10 @@ costo = 0;
 
 if strcmp(flag,'max')
     for i = 1:k
-        dist_max = -1;
+        dist_max = 0;
         for j = 1:n
-            for m = 1:j
-                if cluster(j) == k && cluster(m) == k
+            for m = 1:j-1
+                if cluster(j) == i && cluster(m) == i
                     dist = norm(data(j,:)-data(m,:))^2;
                     dist_max = max(dist_max, dist);
                 end
@@ -26,10 +26,9 @@ end
 
 if strcmp(flag,'quad')
     for i = 1:n
-        for j = 1:i
+        for j = 1:i-1
             if cluster(i) == cluster(j)
-                k = cluster(i);
-                dist = norm(data(i,:)-data(k,:))^2;
+                dist = norm(data(i,:)-data(j,:))^2;
                 costo = costo + dist;
             end
         end
@@ -38,10 +37,9 @@ end
 
 if strcmp(flag,'taxi')
     for i = 1:n
-        for j = 1:i
+        for j = 1:i-1
             if cluster(i) == cluster(j)
-                k = cluster(i);
-                dist = norm(data(i,:)-data(k,:));
+                dist = norm(data(i,:)-data(j,:));
                 costo = costo + dist;
             end
         end
