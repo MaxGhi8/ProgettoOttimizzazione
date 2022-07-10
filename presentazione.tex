@@ -49,7 +49,7 @@
 		\end{column}
 	\end{columns}
 	\vspace{0.5cm}
-	I metodi di k-means clustering trovano soluzioni di minimo locale con cluster vuoti (figura di sx) o con molti pochi punti nei cluster. Questo tipo di clustering non va bene per le competizioni sportive, vorremo aggiungere dei vincoli sulla cardinalità dei cluster.
+	I metodi di k-means clustering trovano soluzioni di minimo locale con cluster vuoti (figura di sx) o troppo scarni. Questo tipo di clustering non va bene per le competizioni sportive, vorremo aggiungere dei vincoli sulla cardinalità dei cluster.
 \end{frame}
 \begin{frame}{K-Means Clustering}
 	Siano dati un insieme di $m$ punti $\mathcal{D} = \{\textbf{x}_i\}^m_{i=1}$ in $\mathbb{R}^n$ e un numero $k$ di clusters.
@@ -96,7 +96,7 @@
 \end{frame}
 \begin{frame}
 	\begin{block}{Algoritmo Constrained K-Means Clustering}
-			Siano dati un dataset $\mathcal{D} = \{\textbf{x}_i\}^m_{i=1}$ in $\mathbb{R}^n$ e un numero $k$ di clusters contenenti almeno $ \tau_h $ punti, dove $ \sum_{h=1}^{k}\tau_h \le m $; assegnati i centri $ \textbf{c}_{1}^{(t)}, \dots, \textbf{c}_{k}^{(t)} $ della $ t $-esima iterazione, si calcolano i centri $ \textbf{c}_{1}^{(t+1)}, \dots, \textbf{c}_{k}^{(t+1)} $ della $ (t+1) $-iterazione come segue:
+			Siano dati un dataset $\mathcal{D} = \{\textbf{x}_i\}^m_{i=1}$ in $\mathbb{R}^n$ e un numero $k$ di clusters contenenti almeno $ \tau_h $ punti, dove $ \sum_{h=1}^{k}\tau_h \le m $; assegnati i centri $ \textbf{c}_{1}^{(t)}, \dots, \textbf{c}_{k}^{(t)} $ della $ t $-esima iterazione, si calcolano i centri $ \textbf{c}_{1}^{(t+1)}, \dots, \textbf{c}_{k}^{(t+1)} $ della $ (t+1) $-iterazione:
 			\begin{enumerate}
 				\item \textit{Assegnamento cluster:} si trova $ T_{i,h}^{(t)} $ soluzione del problema lineare intero \eqref{CKMP} con centri $ \textbf{c}_{1}^{(t)}, \dots, \textbf{c}_{k}^{(t)} $ fissati;
 				\item \textit{Aggiornamento centri:} 
@@ -107,6 +107,8 @@
 					\textbf{c}_{h}^{(t)}\qquad\qquad \text{altrimenti}
 				\end{cases} \]
 			\end{enumerate}
+		\vspace{-0.3cm}
+		Si ferma quando $\textbf{c}_{h}^{(t+1)} = \textbf{c}_{h}^{(t)}, \ h=1,\dots,k.$
 	\end{block}
 \end{frame}
 \begin{frame}
@@ -130,7 +132,7 @@
 		\end{column}
 	\end{columns}
 	\vspace{0.3cm}
-	Siano $\mathcal{N} = \{\textbf{x}_i\}_{i=1}^m \cup \{\textbf{c}_h\}_{h=1}^k \cup \{a\}$ l'insieme dei nodi, $\mathcal{A} = \{(\textbf{x}_i,\textbf{c}_h), \ \textbf{x}_i,\textbf{c}_h \in \mathcal{N}\} \cup \{(\textbf{c}_h, a), \ \textbf{c}_h \in \mathcal{N}\}$ l'insieme degli archi orientati. 	
+	Siano $\mathcal{N} = \{\textbf{x}_i\}_{i=1}^m \cup \{\textbf{c}_h\}_{h=1}^k \cup \{a\}$ l'insieme dei nodi e $\mathcal{A} = \{(\textbf{x}_i,\textbf{c}_h), \ \textbf{x}_i,\textbf{c}_h \in \mathcal{N}\} \cup \{(\textbf{c}_h, a), \ \textbf{c}_h \in \mathcal{N}\}$ l'insieme degli archi orientati. 	
 \end{frame}
 \begin{frame}
 	Ad ogni \textit{nodo-fornitore} $\textbf{x}_i$ è associato un valore $b_{\textbf{x}_i}=1$, ad ogni \textit{nodo-richiesta} $\textbf{c}_h$ un valore $b_{\textbf{c}_h}=-\tau_h$ e al nodo artificiale $a$ un valore $b_a = -m+\sum_{h=1}^k \tau_h$. \\
