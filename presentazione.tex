@@ -36,22 +36,6 @@
 
 \section{K-Means Clustering}
 \begin{frame}{K-Means Clustering}
-	\begin{columns}
-		\begin{column}{0.5\textwidth}
-			\begin{center}
-				\includegraphics[width=1\textwidth]{lloyd_ft.png}      
-			\end{center}
-		\end{column}
-		\begin{column}{0.5\textwidth}
-			\begin{center}
-				\includegraphics[width=1\textwidth]{lloyd_kmpp.png}      
-			\end{center}
-		\end{column}
-	\end{columns}
-	\vspace{0.5cm}
-	I metodi di k-means clustering trovano soluzioni di minimo locale con cluster vuoti (figura di sx) o troppo scarni. Questo tipo di clustering non va bene per le competizioni sportive, vorremo aggiungere dei vincoli sulla cardinalità dei cluster.
-\end{frame}
-\begin{frame}{K-Means Clustering}
 	Siano dati un insieme di $m$ punti $\mathcal{D} = \{\textbf{x}_i\}^m_{i=1}$ in $\mathbb{R}^n$ e un numero $k$ di clusters.
 	\begin{block}{Problema del k-means clustering}
 		Trovare i centri dei cluster $ \textbf{c}_1, \textbf{c}_2, \dots, \textbf{c}_k  \in \mathbb{R}^n$ tali che la somma della distanza euclidea tra ogni punto $ \textbf{x}_i $
@@ -76,6 +60,31 @@
 \vspace{-0.4cm}
 	\end{block}
 \end{frame}
+\begin{frame}{Applicazione}
+	Un esempio di applicazione di questi metodi è la divisione in gironi delle squadre di serie D che svolgono la Prima Fase Provinciale nella Coppa Italiana del Tennis.	\\
+	L'obiettivo è quello di dividere le $n$ squadre in $k$ gironi da $M$ componenti minimizzando la distanza dei circoli di appartenenza.\\
+\end{frame}
+\begin{frame}
+	\begin{columns}
+		\begin{column}{0.5\textwidth}
+			\begin{center}
+				\includegraphics[width=1\textwidth]{lloyd_ft.png}      
+			\end{center}
+		\end{column}
+		\begin{column}{0.5\textwidth}
+			\begin{center}
+				\includegraphics[width=1\textwidth]{lloyd_kmpp.png}      
+			\end{center}
+		\end{column}
+	\end{columns}
+	\vspace{0.5cm}
+I metodi di k-means clustering trovano soluzioni di minimo locale con cluster vuoti (figura di sx) o troppo scarni. Questo tipo di clustering non va bene per le competizioni sportive, vorremo aggiungere dei vincoli sulla cardinalità dei cluster. \\
+I dati raccolti e gli script realizzati sono disponibili al link seguente.
+\begin{center}
+	\url{https://github.com/MaxGhi8/ProgettoOttimizzazione}
+\end{center}
+\end{frame}
+
 
 \section{Constrained K-Means Clustering}
 \begin{frame}{Constrained K-Means Clustering}
@@ -120,7 +129,7 @@
 \end{frame}
 
 \subsection{Sotto-problema dell'assegnamento dei clusters}
-\begin{frame}
+\begin{frame}{Sotto-problema dell'assegnamento dei clusters}
 	\begin{columns}
 		\begin{column}{0.5\textwidth}
 			Lo step \textit{assegnamento cluster} può essere scritto in modo equivalente come un problema di ottimizzazione lineare intera per la ricerca del flusso di costo minimo (MCF).  
@@ -168,8 +177,7 @@
 		Inaspettatamente, l'approccio constrained k-means clustering, nonostante richieda vincoli aggiuntivi rispetto a quello del k-means clustering, è meno propenso a convergere a minimi locali, fornendo una migliore rappresentazione dei dati.
 	\end{exampleblock}
 \end{frame}
-\begin{frame}{Codici}
-	Un esempio di applicazione di questi metodi è la divisione in gironi delle squadre di serie D che svolgono la Prima Fase Provinciale nella Coppa Italiana del Tennis.\\ L'obiettivo è quello di dividere le $n$ squadre in $k$ gironi da $M$ componenti minimizzando la distanza dei circoli di appartenenza.\\
+\begin{frame}{Applicazione}
 	I dati raccolti e gli script realizzati sono disponibili al link seguente.
 	\begin{center}
 		\url{https://github.com/MaxGhi8/ProgettoOttimizzazione}
