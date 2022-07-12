@@ -1,41 +1,73 @@
-from math import sqrt, ceil
+from math import ceil
 import numpy as np
-
+# Libreria pyomo per il modello di ottimizzazione
 from pyomo.environ import ConcreteModel, Var, Objective, SolverFactory
 from pyomo.environ import minimize, Binary, RangeSet, ConstraintList
-
+# Per plottare i risultati
 import matplotlib.pyplot as plt
 
 # funzione per leggere il file
 def ParseFile(filename):
-    # OUTPUT: Ls lista con i nomi delle squadre e le due coordinate 
+    """
+    Questa funzione prende in input il file dei dati creato e restituisce
+    Ls = lista con i nomi delle squadre e le due coordinate 
+    """
     doc = open(filename, 'r', encoding = 'utf-8')
-    # for _ in range(50):
     doc.readline() # Salto la prima linea con le intestazioni
     # Leggo i circoli e faccio una lista di liste, ogni sottolista contiene
     # ordinatamente nome squadra come stringa e le due coordinate come float
     Ls = []
     for row in doc:
-        row = row.split(',')
-        # print(row)
+        row = row.split(',') # poiché il file è un csv
         Ls.append( [row[1], float(row[2]), float(row[3])] )
-    return Ls
+    return Ls 
  
 def Tau(m,M):
-    # Costruzione di tau
-    tau = list(M for _ in range(ceil(m/M)))
+    """
+    Parameters:
+    ----------
+    n : numero intero
+        Numero totale di squadre nel torneo
+    M : numero intero
+        Numero di squadre massimo in ogni girone
+
+    Returns
+    -------
+    tau : lista
+          La lista alla posizione i-esima contiene il numero di squadre del 
+          girone i-esimo
+    """
+    tau = list(M for _ in range(ceil(m/M))) # ceil = approssimazione superiore
     resto = sum(tau) - m
     for i in range(resto):
         tau[i] = tau[i] - 1
     return tau
 
 def cKM(data, centre, max_it, M):
-# Constrained K-Means's Algorithm for the k-means clustering
-# INPUT: data points, initial centres, max number of iterations
-# OUTPUT: cluster indices for data points, clusters' centres, n. iterations
-    
-    # data: output di ParseFile
-    # centre: lista di [(latitudine, longitudine), ...]
+    """
+    Constrained K-Means's Algorithm for the k-means clustering
+
+    Parameters
+    ----------
+    data : list
+        output di ParseFile
+    centre : list
+        lista di [(latitudine, longitudine), ...] = initial centres
+    max_it : int
+        numero massimo di iterazioni
+    M : int
+        numero massimo di quadre per girone
+
+    Returns
+    -------
+    cluster : list
+        lista contenente liste , ogni sottolista contiene un girone
+    centre : list
+        lista dei centri
+    it : int
+        numero di iterazioni impiegate all'algoritmo per convergere
+    """
+
     m = len(data) # number of data points
     k = len(centre) # number of clusters
     tau = Tau(m, M)
@@ -79,6 +111,25 @@ def Distanza(dato, centro):
     return distanza
 
 def ClusterAssignment(centre, data, tau):
+    """
+    Risolutore lineare del sottoproblema per il constrained k-means cluster
+    
+    Parameters
+    ----------
+    centre : list
+        lista di [(latitudine, longitudine), ...] = initial centres
+    data : list
+        output di ParseFile
+    tau : list
+        output di Tau(n,M)
+
+    Returns
+    -------
+    T : list
+        lista contenente k sottoliste, ogni sottolista, contiene dei valori in 
+        {0,1}, 0 se la variabile i è nel cluster k e 0 altrimenti
+
+    """
     
     m = len(data) # number of data points
     k = len(centre) # number of clusters
@@ -142,6 +193,7 @@ def PlotCentre(centre):
     plt.show()
     
 def CalcolaCosto(cluster):
+    """ Somma delle distanze al quadrato """
     costo = 0
     for girone in cluster:
         for i, squadra1 in enumerate(girone):
@@ -151,8 +203,10 @@ def CalcolaCosto(cluster):
     return costo
 
 def MaxDistanza(coord, k):
-    """ INPUT: - coord: lista di coordinate
-    - k: numero totale di cluster
+    """ 
+    INPUT: - coord: lista di coordinate
+           - k: numero totale di cluster
+    OUTPUT: - centre inizializzati massimizzando la distanza massima
     """
     centre = []
     m = len(coord) # numero dei punti
@@ -177,22 +231,30 @@ def MaxDistanza(coord, k):
 #   MAIN function
 # -----------------------------------------------
 if __name__ == "__main__": 
-    # filename = 'Squadre_D1_Maschile.csv'
-    filename = 'Squadre_D1_Femminile.csv'
+    genere = 'femminile'
+    genere = 'maschile'
+    if genere == 'maschile':
+        filename = 'Squadre_D1_Maschile.csv' # D1 maschile
+        output_name = 'Gironi_ILP_D1_m_kmeans.txt'
+    if genere == 'femminile':
+        filename = 'Squadre_D1_Femminile.csv' # D1 femminile
+        output_name = 'Gironi_ILP_D1_f_kmeans.txt'
     
     lista_dati = ParseFile(filename)
-    m = len(lista_dati)
-    print('Dati: {}\n'.format(lista_dati[0:2]))
+    m = len(lista_dati) # numero di squadre totali
+    # Per debugging
+    # print('Dati: {}\n'.format(lista_dati[0:2]))
     # print('numero di squadre = {}\n'.format(len(lista_dati))) # stampo a video il numero di squadre
     
     lista_coord = [(x,y) for _,x,y in lista_dati] # lista di tuple con solo le coordinate
-    print('Coordinate:{}\n'.format(lista_coord))
+    # Per debugging
+    # print('Coordinate:{}\n'.format(lista_coord))
     
     M = 6
-    print(Tau(m,M))
+    print('Tau = {}\n'.format(Tau(m,M)))
     k = len(Tau(m,M)) # numero di gironi 
     
-    # Scelta di centri casuali
+    ### Scelta di centri casuali
     # index_centre = np.random.choice(list(range(m)), k, False)
     # centre = []
     # for i in index_centre:
@@ -202,7 +264,7 @@ if __name__ == "__main__":
     # OSSERVAZIONE: il metodo farthest_distance comporta un costo più stabile 
     # rispetto a quello che segue dalla scelta dei centri casuali.
     
-    # Scelta di centri secondo la massima distanza
+    ### Scelta di centri secondo la massima distanza
     centre = MaxDistanza(lista_coord, k)
     print('Centri: {}\n'.format(centre))
     PlotCentre(centre)
@@ -217,8 +279,7 @@ if __name__ == "__main__":
     
     print('Costo: {}\n'.format(CalcolaCosto(cluster)))
 
-    output = open('Gironi_D1_Maschile.txt', 'w')
-    # output = open('Gironi_D1_Femminile.txt', 'w')
+    output = open(output_name, 'w')
     for i, girone in enumerate(cluster):
         output.write("Girone {}:\n".format(i+1))
         for squadra in girone:

@@ -1,33 +1,35 @@
-
-from math import sqrt, ceil
+from math import ceil
 import numpy as np
-# Import the NetworkX library per fare i grafi
-import networkx as nx
-
+# Libreria pyomo per il modello di ottimizzazione
 from pyomo.environ import ConcreteModel, Var, Objective, SolverFactory
 from pyomo.environ import minimize, Reals, Binary, RangeSet, ConstraintList
-
+# Per plottare i risultati
 import matplotlib.pyplot as plt
 
 # funzione per leggere il file
 def ParseFile(filename):
-    # OUTPUT: Ls lista con i nomi delle squadre e le due coordinate 
+    """
+    Questa funzione prende in input il file dei dati creato e restituisce
+    Ls = lista con i nomi delle squadre e le due coordinate 
+    """
     doc = open(filename, 'r', encoding = 'utf-8')
-    # for _ in range(50):
     doc.readline() # Salto la prima linea con le intestazioni
     # Leggo i circoli e faccio una lista di liste, ogni sottolista contiene
     # ordinatamente nome squadra come stringa e le due coordinate come float
     Ls = []
     for row in doc:
-        row = row.split(',')
-        # print(row)
+        row = row.split(',') # poiché il file è un csv
         Ls.append( [row[1], float(row[2]), float(row[3])] )
     return Ls 
 
 
 def CostMatrix(Ls):
-    # INPUT: Ls è la lista in output da ParseFile
-    # OUTPUT: Cm matrice con i costi Cm(i,j) = costo da squadra i a squadra j
+    """
+    INPUT: Ls è la lista in output da ParseFile
+    OUTPUT: Cm matrice con i costi Cm(i,j) = costo da squadra i a squadra j
+    Modificare questa funzione se si vuole considerare dei pesi diversi, ad 
+    esempio le reali distanze tra comuni
+    """
     n = len(Ls)
     Cm = np.zeros((n,n))
     for i in range(n):
@@ -42,8 +44,21 @@ def CostMatrix(Ls):
    
     
 def Tau(n, M):
-    # Costruzione di tau
-    tau = list(M for _ in range(ceil(n/M)))
+    """
+    Parameters:
+    ----------
+    n : numero intero
+        Numero totale di squadre nel torneo
+    M : numero intero
+        Numero di squadre massimo in ogni girone
+
+    Returns
+    -------
+    tau : lista
+          La lista alla posizione i-esima contiene il numero di squadre del 
+          girone i-esimo
+    """
+    tau = list(M for _ in range(ceil(n/M))) # ceil = approssimazione superiore
     resto = sum(tau) - n
     for i in range(resto):
         tau[i] = tau[i] - 1
@@ -51,9 +66,26 @@ def Tau(n, M):
     
     
 def ILP(M, Ls):
-    # INPUT: - M cardinalità gironi (?ACTUNG: M divide o no?)
-    #        - Ls lista delle squadre
-    
+    """
+    Risolve il problema lineare intero per trovare la soluzione ottima che 
+    minimizza la distanza massima delle squadre all'interno dei gironi.
+
+    Parameters
+    ----------
+    M : intero
+        Numero di squadre massimo in ogni girone
+    Ls : lista
+        lista di tuple (output di parsefile)
+
+    Returns
+    -------
+    dict_gironi : dizionario
+        dizionario con chiave 'Gironek' e come valore associato una lista con 
+        i nomi e l'indice delle squadre associate a quel girone
+    costo_totale : float
+        (valore della funzione obbiettivo)/2 = costo totale del cluastering trovato
+
+    """    
     n = len(Ls) #numero di dati (=numero di squadre)
     Cm = CostMatrix(Ls)
     tau = Tau(n, M)
@@ -130,6 +162,21 @@ def ILP(M, Ls):
     return dict_gironi, costo_totale
     
 def PlotSolution(dict_gironi, lista_coord):
+    """
+    Fa il plot del cluster trovato
+
+    Parameters
+    ----------
+    dict_gironi : dizionario
+        output della funzione ILP
+    lista_coord : lista
+        lista di tuple, con al posto i-esimo la tupla con le coordinate
+        associate alla squadra i-esima
+
+    Returns
+    -------
+    None.
+    """
     for girone in dict_gironi:
         squadre_girone = dict_gironi[girone]
         plt.scatter( list(map(lambda x: lista_coord[x[1]-1][0], squadre_girone)),
@@ -137,6 +184,48 @@ def PlotSolution(dict_gironi, lista_coord):
     plt.show()
 
 def CalcolaCosto(dict_gironi, lista_coord):
+    """
+    Parameters
+    ----------
+    dict_gironi : dizionario
+        output della funzione ILP
+    lista_coord : lista
+        lista di tuple, con al posto i-esimo la tupla con le coordinate
+        associate alla squadra i-esima
+
+    Returns
+    -------
+    type = float
+      La somma delle distanze tra le squadre all'interno dei cluster e poi 
+    somma sui cluster (una sorta di costo del cluster)
+    """
+    costo = 0
+    for girone in dict_gironi:
+        squadre_girone = dict_gironi[girone]
+        for squadra1 in squadre_girone:
+            for squadra2 in squadre_girone:
+                distanza_al_quadrato = ((lista_coord[squadra1[1]-1][0] - lista_coord[squadra2[1]-1][0])**2 +
+                                        (lista_coord[squadra1[1]-1][1] - lista_coord[squadra2[1]-1][1])**2)
+                costo = costo + distanza_al_quadrato
+                # print('Distanza al quadrato da {} a {} è {}'.format(squadra1[1], squadra2[1], distanza_al_quadrato ))
+    return costo/2
+
+def CalcolaCosto2(dict_gironi, lista_coord):
+    """
+    Parameters
+    ----------
+    dict_gironi : dizionario
+        output della funzione ILP
+    lista_coord : lista
+        lista di tuple, con al posto i-esimo la tupla con le coordinate
+        associate alla squadra i-esima
+
+    Returns
+    -------
+    type = float
+      La somma delle distanze al quadrato tra le squadre all'interno dei 
+    cluster e poi somma sui cluster (una sorta di costo del cluster)
+    """
     costo = 0
     for girone in dict_gironi:
         squadre_girone = dict_gironi[girone]
@@ -149,6 +238,21 @@ def CalcolaCosto(dict_gironi, lista_coord):
     return costo/2
 
 def CalcolaCosto_minmax(dict_gironi, lista_coord):
+    """
+    Parameters
+    ----------
+    dict_gironi : dizionario
+        output della funzione ILP
+    lista_coord : lista
+        lista di tuple, con al posto i-esimo la tupla con le coordinate
+        associate alla squadra i-esima
+
+    Returns
+    -------
+    type = float
+      Calcola le massime distanze al quadrato tra le squadre all'interno dei 
+    cluster e poi somma sui cluster (una sorta di costo del cluster)
+    """
     costo_tot = 0
     for girone in dict_gironi:
         squadre_girone = dict_gironi[girone]
@@ -167,16 +271,54 @@ def CalcolaCosto_minmax(dict_gironi, lista_coord):
 #   MAIN function
 # -----------------------------------------------
 if __name__ == "__main__":
-    # filename = 'Squadre_D1_Maschile-giusto.csv'
-    filename = 'Squadre_D1_Femminile.csv'
+    genere = 'femminile'
+    # genere = 'maschile'
+    if genere == 'maschile':
+        filename = 'Squadre_D1_Maschile.csv' # D1 maschile
+        output_name = 'Gironi_ILP_D1_m_minmax.txt'
+    if genere == 'femminile':
+        filename = 'Squadre_D1_Femminile.csv' # D1 femminile
+        output_name = 'Gironi_ILP_D1_f_minmax.txt'
+        # SOLUZIONE PROPOSTA DALLA FIT
+        dict_D1 = {}
+        dict_D1['Girone1'] = [("NTC LURAGO D'ERBA",18), 
+                                 ('CIS CHIAVENNA ', 17),
+                                 ('T.C. COLICO ', 26),
+                                 ('T.C. LECCO ', 28),
+                                 ('ALTE GROANE', 3),
+                                 ('GFG SPORT – David Lloyd', 6)]
+        dict_D1['Girone2'] = [('SAN GIUSEPPE', 27), 
+                                 ("OLTREPO' TENNIS ACADEMY", 5),
+                                 ('SPORTIVA AMP', 2),
+                                 ('T.C. PAVIA', 9),
+                                 ('CANOTTIERI TICINO PAVIA ', 13),
+                                 ('DEMA SPORT 2001', 7)]
+        dict_D1['Girone3'] = [('JUNIOR TENNIS TRAINING', 23), 
+                                 ('ECO SPORT', 4),
+                                 ('T.C. GEMONIO', 20),
+                                 ("CIRCOLO TENNIS CANTU' ", 25),
+                                 ('BIEFFESPORT', 21),
+                                 ('JUNIOR TENNIS MILANO', 8)]
+        dict_D1['Girone4'] = [('TENNIS CARPENEDOLO', 19), 
+                                 ('TORBOLE CASAGLIA ', 15),
+                                 ('OLIMPICA TENNIS REZZATO', 24),
+                                 ('CANOTTIERI L. BISSOLATI', 16),
+                                 ('CANOTTIERI FLORA', 12)]
+        dict_D1['Girone5'] = [('BITETENNIS ', 11), 
+                                 ('T.C. BERGAMO', 22),
+                                 ('CANOTTIERI ADDA 1891', 1),
+                                 ('TENNIS CLUB LODI', 10),
+                                 ('GTENNIS ', 14)]
     
     lista_dati = ParseFile(filename)
+    # Per debugging
     # print(lista_dati[0:2])
     # for i, squadra in enumerate(lista_dati):
     #     print('Squadra {}: {}'.format(i+1, lista_dati[i][0]))
     # print('numero di squadre = {}\n'.format(len(lista_dati))) # stampo a video il numero di squadre
     
     lista_coord = [(x,y) for _,x,y in lista_dati] # lista di tuple con solo le coordinate
+    # Per debugging
     # print(lista_coord[0:2])
     
     matrice_costi = CostMatrix(lista_dati)
@@ -184,13 +326,15 @@ if __name__ == "__main__":
     
     M = 6
     [dict_gironi, costo_totale] = ILP(M, lista_dati)
+    # stampo a video i gironi
     print(dict_gironi)
+    # stampo a video i costi
     print("Somma delle distanze massime al quadrato per i gironi ottimali = {}".format(costo_totale))
-    
+    print("Costo totale somme distanze al quadrato gironi ottimi = {}".format(CalcolaCosto2(dict_gironi, lista_coord)))
+    print('Costo totale somme distanze al quadrato gironi ottimi = {}'.format(CalcolaCosto(dict_gironi, lista_coord)))
+    # plotto la soluzione ottimale
     PlotSolution(dict_gironi, lista_coord)
-    
-    # Stampo file in output
-    output_name = 'Gironi_ILP_D1_f.txt'
+    # Stampo file con i gironi ottimi in output 
     output = open(output_name, 'w')
     for key in dict_gironi:
         output.write("{}:\n".format(key))
@@ -199,65 +343,10 @@ if __name__ == "__main__":
             output.write("\t{}\n".format(squadra[0]))
     output.close()
     
-    
-    print('Costo totale somme distanze al quadrato gironi ottimi = {}'.format(CalcolaCosto(dict_gironi, lista_coord)))
-    
-    dict_D1_f = {}
-    dict_D1_f['Girone1'] = [("NTC LURAGO D'ERBA",18), 
-                             ('CIS CHIAVENNA ', 17),
-                             ('T.C. COLICO ', 26),
-                             ('T.C. LECCO ', 28),
-                             ('ALTE GROANE', 3),
-                             ('GFG SPORT – David Lloyd', 6)]
-    dict_D1_f['Girone2'] = [('SAN GIUSEPPE', 27), 
-                             ("OLTREPO' TENNIS ACADEMY", 5),
-                             ('SPORTIVA AMP', 2),
-                             ('T.C. PAVIA', 9),
-                             ('CANOTTIERI TICINO PAVIA ', 13),
-                             ('DEMA SPORT 2001', 7)]
-    dict_D1_f['Girone3'] = [('JUNIOR TENNIS TRAINING', 23), 
-                             ('ECO SPORT', 4),
-                             ('T.C. GEMONIO', 20),
-                             ("CIRCOLO TENNIS CANTU' ", 25),
-                             ('BIEFFESPORT', 21),
-                             ('JUNIOR TENNIS MILANO', 8)]
-    dict_D1_f['Girone4'] = [('TENNIS CARPENEDOLO', 19), 
-                             ('TORBOLE CASAGLIA ', 15),
-                             ('OLIMPICA TENNIS REZZATO', 24),
-                             ('CANOTTIERI L. BISSOLATI', 16),
-                             ('CANOTTIERI FLORA', 12)]
-    dict_D1_f['Girone5'] = [('BITETENNIS ', 11), 
-                             ('T.C. BERGAMO', 22),
-                             ('CANOTTIERI ADDA 1891', 1),
-                             ('TENNIS CLUB LODI', 10),
-                             ('GTENNIS ', 14)]
-    
-    print('Costo totale somme distanze al quadrato gironi reali = {}'.format(CalcolaCosto(dict_D1_f, lista_coord)))
-    print('Somma delle distanze massime al quadrato per i gironi reali = {}'.format(CalcolaCosto_minmax(dict_D1_f, lista_coord)))
-    
-    
-    
-
-    
-    """
-    lista_gironi_D1_f_ufficiale = [[(18,17), (17,28), (28,26), (26,3), (3,6), (6,18)],
-                                  [(27,5), (5,2), (2,9), (9,13), (13,7), (7,27)],
-                                  [(23,4), (4,20), (20,25), (25,21), (21,8), (8,23)],
-                                  [(19,15), (15,24), (24,16), (16,12), (12,19)],
-                                  [(11,22), (22,1), (1,10), (10,14), (14,11)]]
-    
-    costo_tot_ufficiale = CalcolaCosto(lista_gironi_D1_f_ufficiale, lista_coord)
-    print('Costo totale gironi reali = {}'.format(costo_tot_ufficiale))
-    
-    nostra_sol = [[(28,26), (26,22), (22,18), (18,17), (17,28)],
-                  [(27,25), (25,23), (23,20), (20,4), (4, 3), (3,27)],
-                  [(21,13), (13,9), (9,5), (5,2), (2,21)],
-                  [(12,15), (15,16), (16,19), (19,24), (24,12)],
-                  [(1,6), (6,8), (8,10), (10,11), (11,14), (14,1)]]
-    
-    c = CalcolaCosto(nostra_sol, lista_coord)
-    print('Costo totale gironi reali = {}'.format(c))
-    
-    # costo_tot = CalcolaCosto(lista_gironi_D1_f_ottima, lista_coord)
-    # print('Costo totale gironi soluzione ottima = {}'.format(costo_tot))
-    """
+    # SOLUZIONE PROPOSTA DALLA FIT    
+    # stampo a video i costi
+    print('Costo totale somme distanze gironi reali = {}'.format(CalcolaCosto(dict_D1, lista_coord)))
+    print('Costo totale somme distanze al quadrato gironi reali = {}'.format(CalcolaCosto2(dict_D1, lista_coord)))
+    print('Somma delle distanze massime al quadrato per i gironi reali = {}'.format(CalcolaCosto_minmax(dict_D1, lista_coord)))
+    # Plot soluzione FIT
+    PlotSolution(dict_D1, lista_coord)
