@@ -10,7 +10,7 @@ import matplotlib.pyplot as plt
 def ParseFile(filename):
     """
     Questa funzione prende in input il file dei dati creato e restituisce
-    Ls = lista cdi tuple di elementi (nome squadra, le due coordinate) 
+    Ls = lista di tuple di elementi (nome squadra, le due coordinate) 
     """
     doc = open(filename, 'r', encoding = 'utf-8')
     doc.readline() # Salto la prima linea con le intestazioni
@@ -81,12 +81,12 @@ def ILP(M, Ls):
     -------
     dict_gironi : dizionario
         dizionario con chiave 'Gironek' e come valore associato una lista con 
-        i nomi el'indice delle squadre associate a quel girone
+        i nomi e l'indice delle squadre associate a quel girone
     costo_totale : float
-        (valore della funzione obbiettivo)/2 = costo totale del cluastering trovato
+        (valore della funzione obbiettivo)/2 = costo totale del clustering trovato
 
     """    
-    n = len(Ls) #numero di dati (=numero di squadre)
+    n = len(Ls) #numero di dati (= numero di squadre)
     Cm = CostMatrix(Ls)
     tau = Tau(n, M)
     kappa = len(tau) # numero di cluster (= gironi)
