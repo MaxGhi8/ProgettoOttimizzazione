@@ -56,12 +56,12 @@ def cKM(data, centre, max_it, M):
     max_it : int
         numero massimo di iterazioni
     M : int
-        numero massimo di quadre per girone
+        numero massimo di squadre per girone
 
     Returns
     -------
     cluster : list
-        lista contenente liste , ogni sottolista contiene un girone
+        lista contenente liste, ogni sottolista contiene un girone
     centre : list
         lista dei centri
     it : int
@@ -126,8 +126,8 @@ def ClusterAssignment(centre, data, tau):
     Returns
     -------
     T : list
-        lista contenente k sottoliste, ogni sottolista, contiene dei valori in 
-        {0,1}, 0 se la variabile i è nel cluster k e 0 altrimenti
+        lista contenente k sottoliste, ogni sottolista contiene dei valori in 
+        {0,1}: 1 se la variabile i è nel cluster k e 0 altrimenti
 
     """
     
@@ -232,7 +232,7 @@ def MaxDistanza(coord, k):
 # -----------------------------------------------
 if __name__ == "__main__": 
     genere = 'femminile'
-    genere = 'maschile'
+    # genere = 'maschile'
     if genere == 'maschile':
         filename = 'Squadre_D1_Maschile.csv' # D1 maschile
         output_name = 'Gironi_ILP_D1_m_kmeans.txt'
